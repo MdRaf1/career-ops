@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.1](https://github.com/santifer/career-ops/compare/web-v0.7.0...web-v0.7.1) (2026-08-19)
+
+
+### Bug Fixes
+
+* **web:** safe Codex AI-search exec with mtime-keyed capability cache ([#2361](https://github.com/santifer/career-ops/issues/2361)) ([699f506](https://github.com/santifer/career-ops/commit/699f506f62427cdb5a93bef8247eb6c1fd6418ef))
+* **web:** take the core followups lock so web writes cannot race the seeder ([#3034](https://github.com/santifer/career-ops/issues/3034)) ([3b761b0](https://github.com/santifer/career-ops/commit/3b761b09b2979eedf4eadbd9d3c24b9d61462f04))
+
 ## [0.7.0](https://github.com/santifer/career-ops/compare/web-v0.6.1...web-v0.7.0) (2026-08-18)
 
 

@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.28.0](https://github.com/santifer/career-ops/compare/career-ops-v1.27.0...career-ops-v1.28.0) (2026-08-19)
+
+
+### Features
+
+* **application-answers:** parse a rendered section back into a snapshot ([3313515](https://github.com/santifer/career-ops/commit/331351566605ba68c8115c2a99a00290edcb4a68))
+* **discover-ats:** probe the long-tail ATS vendors, not just the big three ([2d6f188](https://github.com/santifer/career-ops/commit/2d6f188c3a7ba4ac19c08fe98aa7bc558803018b))
+* **doctor:** emit the Gemini Node 20+ verdict instead of leaving it in prose ([#3032](https://github.com/santifer/career-ops/issues/3032)) ([e98bc6b](https://github.com/santifer/career-ops/commit/e98bc6ba9bb29ac625256b38ee548bbd588e0985))
+* **followups:** export withFollowupsLock so other writers can share the lock ([fba3bb2](https://github.com/santifer/career-ops/commit/fba3bb2029af81c0193adf7b6cb0adcc0cec840b))
+* **providers:** add yourator job board provider ([c664576](https://github.com/santifer/career-ops/commit/c664576dec4185e140518d9bc1fd2beaf299f901))
+* **reports:** add reports_to to the Machine Summary schema ([8cf3dac](https://github.com/santifer/career-ops/commit/8cf3dac5a0f7df0e815d9b57d7337ba7ae3eeea9))
+
+
+### Bug Fixes
+
+* **classify-tier:** validate CLI flags and add a usage block ([#2870](https://github.com/santifer/career-ops/issues/2870)) ([010ccc5](https://github.com/santifer/career-ops/commit/010ccc5eb6be486335c2b973a80605cbfc0eaf45))
+* **contacts:** add -h/--help and reject unrecognized flags ([#2829](https://github.com/santifer/career-ops/issues/2829)) ([0aa3299](https://github.com/santifer/career-ops/commit/0aa3299b2e4d6a1d1b1d88fb8a52dc688e902afb))
+* **cv:** an empty Skills section no longer deletes the sections after it ([199b7d6](https://github.com/santifer/career-ops/commit/199b7d68941362134e8ba9ae08d68c1d7c117b08))
+* **liveness:** read same-origin iframes so embedded postings aren't false negatives ([#2884](https://github.com/santifer/career-ops/issues/2884)) ([bd36aa5](https://github.com/santifer/career-ops/commit/bd36aa5990beac49bc9dd24549fffc6b765c5997))
+* **locks:** the other two copies of the protocol had the same Windows bug ([#3033](https://github.com/santifer/career-ops/issues/3033)) ([1f73f2e](https://github.com/santifer/career-ops/commit/1f73f2eabbbf4376a9103cc1619a98a72682512b))
+* **merge-tracker:** write rows at the header's actual width on customized trackers ([8668ac1](https://github.com/santifer/career-ops/commit/8668ac1a0d37676a8540be54724333b57240ec6d))
+* **pipeline-lock:** an unreadable owner stamp is not an ownerless lock ([bb537c6](https://github.com/santifer/career-ops/commit/bb537c630f46174d7dc452c21d5b804f628cb5ff))
+* **pipeline-lock:** time out a wedged holder, not an unlucky waiter ([098bad0](https://github.com/santifer/career-ops/commit/098bad01b899c4ce3c3d3946957d654379b9a5c7))
+* **portals:** block German student and support postings in the example title filter ([6a3dbc2](https://github.com/santifer/career-ops/commit/6a3dbc290d3c1d5805bc40002d2d0010aa876666))
+* **providers:** senjob was the fifth private entity decoder, and the weakest — it emitted C0 controls ([aa21e92](https://github.com/santifer/career-ops/commit/aa21e9296e2c1c54b82887641ed7b843c3e3cf37))
+* **set-status:** rejects today's date east of UTC, logs tomorrow's west of it ([2461b3b](https://github.com/santifer/career-ops/commit/2461b3b979fcd6d361a8be555f1cb9fc96728251))
+* **tracker:** treat Windows rename contention as contention, not death ([#2777](https://github.com/santifer/career-ops/issues/2777)) ([474ffc4](https://github.com/santifer/career-ops/commit/474ffc4f4c5f05929863a9d9f8528d32c0375c1a))
+* **trust-validator:** a company with an accent in its name is flagged for being on its own domain ([5adc39f](https://github.com/santifer/career-ops/commit/5adc39fad7dfcb391642e74b7909942b10b462fe))
+* **verify-portals:** --add probes slugs that cannot exist for an accented company name ([8bd65eb](https://github.com/santifer/career-ops/commit/8bd65ebeb9750ef20d503cfd8e281ecf90f5353c))
+* **web:** safe Codex AI-search exec with mtime-keyed capability cache ([#2361](https://github.com/santifer/career-ops/issues/2361)) ([699f506](https://github.com/santifer/career-ops/commit/699f506f62427cdb5a93bef8247eb6c1fd6418ef))
+* **web:** take the core followups lock so web writes cannot race the seeder ([#3034](https://github.com/santifer/career-ops/issues/3034)) ([3b761b0](https://github.com/santifer/career-ops/commit/3b761b09b2979eedf4eadbd9d3c24b9d61462f04))
+
 ## [1.27.0](https://github.com/santifer/career-ops/compare/career-ops-v1.26.0...career-ops-v1.27.0) (2026-08-18)
 
 
