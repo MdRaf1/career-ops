@@ -115,9 +115,14 @@ version: 1.0.0
   /* Generated on the item BEFORE it, so a wrap cannot start a line with the
      separator. See cv-template.html for the full rationale. */
   .contact-row > *:not(:last-child)::after {
-    /* The leading space replaces the markup whitespace that sat before the old
-       separator element; without it every item after the first shifts left. */
-    content: " |";
+    /* Replaces the markup whitespace that sat before the old separator element;
+       without it every item after the first shifts left.
+       NO-BREAK space (U+00A0), not a plain one: a plain space here is a break
+       opportunity and Chromium takes it, leaving the bar alone at the start of
+       the next line -- the artifact this rule exists to prevent. Measured: with
+       a plain space, tests/cv-visual/contact-row-wrap.spec.mjs fails on
+       compact, executive, jake and modern in LTR. */
+    content: "\00a0|";
     margin-inline: 4px;
     color: #b0b7c2;
   }

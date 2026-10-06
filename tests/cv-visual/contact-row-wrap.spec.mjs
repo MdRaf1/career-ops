@@ -88,6 +88,20 @@ async function lineLeaders(page) {
     // that item's text. Classifying only the generated form would quietly pass
     // on the very markup the fix removes.
     const SEPARATORS = new Set(['|', '·', '•', '-', '–', '—']);
+
+    // Two rects share a visual line when their vertical extents overlap by more
+    // than half the shorter one. Comparing `top` for near-equality instead looks
+    // right and is not: an item's border box and its text's line box start at
+    // different y whenever line-height exceeds the font size, which is the
+    // normal case for a block-level flex item. That mismatch reported a text
+    // rect as "not on this line" and so called an ordinary item a separator,
+    // turning templates/ats red — a template whose .contact-row is a column and
+    // which generates no separator at all.
+    const sameLine = (a, b) => {
+      const overlap = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+      return overlap > Math.min(a.height, b.height) * 0.5;
+    };
+
     const boxes = [];
     for (const el of row.children) {
       const rects = [...el.getClientRects()];
@@ -96,27 +110,40 @@ async function lineLeaders(page) {
       const textRects = [...range.getClientRects()];
       if (!rects.length) continue;
 
+      // Whether this item generates a separator at all, asked of the engine
+      // rather than inferred from geometry: a template with no ::after must
+      // never yield a separator box, however its line boxes happen to measure.
+      const after = getComputedStyle(el, '::after').content;
+      const hasGenerated = Boolean(after) && after !== 'none' && after !== 'normal';
+
       // An element whose whole content is a separator glyph IS a separator.
       const ownKind = SEPARATORS.has((el.textContent || '').trim()) ? 'separator' : 'item';
 
       for (const r of rects) {
         // Text rects belonging to this visual line.
-        const onLine = textRects.filter((t) => Math.abs(t.top - r.top) < 2);
+        const onLine = textRects.filter((t) => sameLine(t, r));
         if (onLine.length) {
           const left = Math.min(...onLine.map((t) => t.left));
           const right = Math.max(...onLine.map((t) => t.right));
           boxes.push({ y: r.top, left, right, kind: ownKind });
           // The generated separator is the strip of the element box lying past
           // its text on the logical trailing side (right in LTR, left in RTL).
-          if (ownKind === 'item' && !rtl && r.right - right > 2) {
+          if (ownKind === 'item' && hasGenerated && !rtl && r.right - right > 2) {
             boxes.push({ y: r.top, left: right, right: r.right, kind: 'separator' });
           }
-          if (ownKind === 'item' && rtl && left - r.left > 2) {
+          if (ownKind === 'item' && hasGenerated && rtl && left - r.left > 2) {
             boxes.push({ y: r.top, left: r.left, right: left, kind: 'separator' });
           }
-        } else {
-          boxes.push({ y: r.top, left: r.left, right: r.right, kind: ownKind });
+        } else if (ownKind === 'separator' || hasGenerated) {
+          // None of this element's own text is on this line, so everything
+          // painted here is its generated content: the separator travelled onto
+          // a line of its own. Tagging it `ownKind` instead would call it an
+          // item and let exactly the case this spec exists to catch pass
+          // silently, since the line's leading edge would read as ordinary text.
+          boxes.push({ y: r.top, left: r.left, right: r.right, kind: 'separator' });
         }
+        // Otherwise the element paints no text and generates nothing on this
+        // line — an empty contact item, which contributes no leading edge.
       }
     }
 
