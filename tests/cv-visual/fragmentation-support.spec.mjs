@@ -118,14 +118,53 @@ function blockPages(pgs) {
 
 // ---- the three invariants, stated over block positions ----
 
+/**
+ * Every token the invariants read, in document order.
+ *
+ * Presence is asserted before any invariant runs, because an invariant that
+ * cannot find a token has nothing to say about it — and three invariants that
+ * each quietly skipped what they could not find would report "no violations"
+ * for a render whose fixture content never reached the extracted text at all.
+ * That is the vacuous pass this file exists to rule out, so it is checked rather
+ * than assumed.
+ */
+function expectedTokens() {
+  const out = [];
+  for (let i = 1; i <= ENTRIES; i++) {
+    out.push(`HEAD${i}`);
+    for (let k = 1; k <= BODY_LINES; k++) out.push(`b${i}_${k}`);
+    out.push(`TAIL${i}`);
+  }
+  return out;
+}
+
+/** Which expected tokens are absent from a render's extracted text. */
+function missingTokens(pgs) {
+  const at = blockPages(pgs);
+  return expectedTokens().filter((t) => !at.has(t));
+}
+
+/**
+ * The page a token landed on. Throws rather than returning undefined: with
+ * presence asserted up front, an absent token means the fixture or the
+ * extraction changed shape, and swallowing that is what made the old
+ * `!== undefined` guards able to pass an unchecked render.
+ */
+function pageOf(at, token) {
+  const p = at.get(token);
+  if (p === undefined) {
+    throw new Error(`token ${token} is absent from the extracted text, which `
+      + 'should have been caught by the presence assertion before any invariant ran');
+  }
+  return p;
+}
+
 /** A heading left on the page before the body it introduces. */
 function orphanedHeadings(pgs) {
   const at = blockPages(pgs);
   const bad = [];
   for (let i = 1; i <= ENTRIES; i++) {
-    const head = at.get(`HEAD${i}`);
-    const firstBody = at.get(`b${i}_1`);
-    if (head !== undefined && firstBody !== undefined && head < firstBody) bad.push(`HEAD${i}`);
+    if (pageOf(at, `HEAD${i}`) < pageOf(at, `b${i}_1`)) bad.push(`HEAD${i}`);
   }
   return bad;
 }
@@ -135,9 +174,7 @@ function strandedTails(pgs) {
   const at = blockPages(pgs);
   const bad = [];
   for (let i = 1; i <= ENTRIES; i++) {
-    const tail = at.get(`TAIL${i}`);
-    const lastBody = at.get(`b${i}_${BODY_LINES}`);
-    if (tail !== undefined && lastBody !== undefined && tail > lastBody) bad.push(`TAIL${i}`);
+    if (pageOf(at, `TAIL${i}`) > pageOf(at, `b${i}_${BODY_LINES}`)) bad.push(`TAIL${i}`);
   }
   return bad;
 }
@@ -147,11 +184,11 @@ function splitWraps(pgs) {
   const at = blockPages(pgs);
   const bad = [];
   for (let i = 1; i <= ENTRIES; i++) {
-    const tokens = [
+    const pages = [
       ...Array.from({ length: BODY_LINES }, (_, k) => `b${i}_${k + 1}`),
       `TAIL${i}`,
-    ].map((t) => at.get(t)).filter((p) => p !== undefined);
-    if (tokens.length > 1 && new Set(tokens).size > 1) bad.push(`wrap${i}`);
+    ].map((t) => pageOf(at, t));
+    if (new Set(pages).size > 1) bad.push(`wrap${i}`);
   }
   return bad;
 }
@@ -183,10 +220,27 @@ function fragmentationCase({ name, guarantee, css, wrap = false, violations }) {
       const tried = [];
       let control = null;
       let pad = 0;
+
+      // Every expected token must be in the extracted text before anything is
+      // asked about where it landed. Without this, a render whose fixture
+      // content never reached the text would report no violations and the
+      // placement check below would pass having checked nothing.
+      const requireAllTokens = (pgs, what) => {
+        const missing = missingTokens(pgs);
+        expect(missing,
+          `${what}: ${missing.length} of ${expectedTokens().length} fixture tokens are absent `
+          + `from the extracted text (${missing.slice(0, 8).join(', ')}`
+          + `${missing.length > 8 ? `, +${missing.length - 8} more` : ''}). `
+          + 'Nothing can be concluded about page placement from a render that is missing content, '
+          + 'so this is a failure rather than a skip.'
+        ).toEqual([]);
+      };
+
       // 36–60 brackets the A4 content box at this font; step 1 so every
       // boundary position between and inside entries is visited.
       for (let p = 36; p <= 60; p += 1) {
         const pgs = await render(page, dir, doc({ pad: p, css: '', wrap }), `ctl-${p}`);
+        requireAllTokens(pgs, `unguarded render at pad=${p}`);
         if (pgs.length < 2) continue;
         const bad = violations(pgs);
         tried.push(`${p}:${bad.length ? bad.join('+') : '-'}`);
@@ -201,6 +255,7 @@ function fragmentationCase({ name, guarantee, css, wrap = false, violations }) {
       ).not.toBeNull();
 
       const guarded = await render(page, dir, doc({ pad, css, wrap }), `fix-${pad}`);
+      requireAllTokens(guarded, `guarded render at pad=${pad}`);
       expect(
         violations(guarded),
         `at pad=${pad} the unguarded render violated "${guarantee}" at ${control.bad.join('+')}, `
