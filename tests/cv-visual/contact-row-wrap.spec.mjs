@@ -31,11 +31,27 @@ import { listTemplates } from '../../cv-templates.mjs';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 // Widths that straddle the wrap: the bug is width-dependent, so one viewport
-// proves nothing. These bracket the A4 content box the PDF path renders into.
-const WIDTHS = [520, 600, 680, 760, 840];
+// proves nothing.
+//
+// 679 is not a round number and is the important one: A4 at 8.27in less two
+// 0.6in margins is 7.07in = 679px at 96dpi, which is the width the PDF is
+// actually laid out at. Measuring only at wider viewports left the width every
+// user's CV renders at untested — I went looking for a defect at paper width and
+// could not tell a real one from an artifact because this spec never covered it.
+const PAPER_WIDTH = 679;
+const WIDTHS = [PAPER_WIDTH, 520, 600, 680, 760, 840];
 
-/** Synthetic, neutral payload whose long location forces the row to wrap. */
-function payload(lang) {
+/**
+ * Synthetic, neutral payload whose long location forces the row to wrap.
+ *
+ * `portfolioDisplay` selects the second thing that can break a contact row.
+ * zh-minimal sets `a { overflow-wrap: anywhere; word-break: break-word }`, which
+ * the generated ::after inherits — a break mechanism no whitespace is involved
+ * in, so the no-break space does not cover it. It only engages when the content
+ * would otherwise overflow, so an ordinary-length URL never reaches it and the
+ * path went untested until a long unbroken value was tried.
+ */
+function payload(lang, portfolioDisplay = 'candidate.example.com') {
   return {
     lang,
     page_format: 'a4',
@@ -45,7 +61,7 @@ function payload(lang) {
       email: 'candidate@example.com',
       linkedin: { url: 'https://linkedin.com/in/candidate', display: 'linkedin.com/in/candidate' },
       github: { url: 'https://github.com/candidate', display: 'github.com/candidate' },
-      portfolio: { url: 'https://candidate.example.com', display: 'candidate.example.com' },
+      portfolio: { url: 'https://candidate.example.com', display: portfolioDisplay },
       // Long enough that the row must wrap at every width above; this is the
       // shape that exposed the bug, not a realistic location.
       location: 'Example City, Exampleland — open to relocation — fully remote — available immediately',
@@ -159,32 +175,40 @@ async function lineLeaders(page) {
   });
 }
 
+// One unbroken token long enough that it must overflow the row, which is the
+// only condition under which overflow-wrap engages.
+const LONG_PORTFOLIO = 'candidate.example.com/portfolio/'
+  + 'a-very-long-unbroken-path-segment-that-cannot-wrap-normally-at-all';
+
 for (const t of contactRowTemplates()) {
   for (const [label, lang] of [['ltr', 'en'], ['rtl-ar', 'ar']]) {
-    test(`${t.rel} (${label}): no contact-row line starts with the separator`, async ({ page }) => {
-      const dir = mkdtempSync(join(tmpdir(), 'co-contact-wrap-'));
-      try {
-        const input = join(dir, 'payload.json');
-        const html = join(dir, 'cv.html');
-        writeFileSync(input, JSON.stringify(payload(lang)));
-        execFileSync(process.execPath, ['build-cv-html.mjs', input, html, t.path],
-          { cwd: ROOT, stdio: 'pipe' });
-        await page.goto(pathToFileURL(html).href, { waitUntil: 'load' });
-        await page.emulateMedia({ media: 'print' });
-        await page.evaluate(() => document.fonts.ready);
+    for (const [valueLabel, portfolio] of [['short url', undefined], ['long unbroken url', LONG_PORTFOLIO]]) {
+      test(`${t.rel} (${label}, ${valueLabel}): no contact-row line starts with the separator`, async ({ page }) => {
+        const dir = mkdtempSync(join(tmpdir(), 'co-contact-wrap-'));
+        try {
+          const input = join(dir, 'payload.json');
+          const html = join(dir, 'cv.html');
+          writeFileSync(input, JSON.stringify(payload(lang, portfolio)));
+          execFileSync(process.execPath, ['build-cv-html.mjs', input, html, t.path],
+            { cwd: ROOT, stdio: 'pipe' });
+          await page.goto(pathToFileURL(html).href, { waitUntil: 'load' });
+          await page.emulateMedia({ media: 'print' });
+          await page.evaluate(() => document.fonts.ready);
 
-        for (const width of WIDTHS) {
-          await page.setViewportSize({ width, height: 1485 });
-          const measured = await lineLeaders(page);
-          expect(measured, `${t.rel} rendered no .contact-row`).not.toBeNull();
-          expect(
-            measured.leaders,
-            `at ${width}px a contact-row line begins with the separator: ${measured.leaders.join(',')}`
-          ).not.toContain('separator');
+          for (const width of WIDTHS) {
+            await page.setViewportSize({ width, height: 1485 });
+            const measured = await lineLeaders(page);
+            expect(measured, `${t.rel} rendered no .contact-row`).not.toBeNull();
+            expect(
+              measured.leaders,
+              `at ${width}px${width === PAPER_WIDTH ? ' (A4 paper width)' : ''} a contact-row line `
+              + `begins with the separator: ${measured.leaders.join(',')}`
+            ).not.toContain('separator');
+          }
+        } finally {
+          rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
         }
-      } finally {
-        rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
-      }
-    });
+      });
+    }
   }
 }

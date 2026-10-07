@@ -80,12 +80,44 @@ for (const t of TEMPLATES) {
     );
   });
 
-  // Direction of attachment. A template may legitimately render no separator
-  // (templates/ats lays the row out as a column, one item per line, so there is
-  // no wrap and nothing to separate) — the premise, not the filename, decides:
-  // only a template that generates a separator is held to where it hangs it.
+  // Direction of attachment, and that there IS one.
+  //
+  // `generates` used to gate the assertion below and nothing else, so a template
+  // that lost its separator rule entirely made the gate false and the assertion
+  // vanished — the suite accepted a contact row with no separators at all, which
+  // is the same silently-skipped check this PR exists to remove. The premise is
+  // now asserted instead of assumed: a row template MUST generate a separator,
+  // and the one template that legitimately does not is named here with its
+  // reason, so a NEW template that forgets the rule fails rather than opting
+  // itself out.
+  //
+  // templates/ats lays .contact-row out as a column — one item per line, so
+  // there is no wrap, nothing to separate, and a separator would be noise in an
+  // ATS parse. That exemption follows the layout, not the filename, and the
+  // column rule is asserted here so the exemption cannot outlive its reason.
+  const COLUMN_ROW_TEMPLATES = new Map([
+    ['templates/ats/cv-template.ats.html', /\.contact-row\s*\{[^}]*flex-direction:\s*column/],
+  ]);
+
   const generates = /\.contact-row\s*>\s*\*:not\(:(first|last)-child\)::(before|after)/.test(t.src);
-  if (generates) {
+  const exemption = COLUMN_ROW_TEMPLATES.get(t.rel);
+
+  if (exemption) {
+    test(`${t.rel}: exempt from separators because its .contact-row is a column`, () => {
+      assert.match(t.src, exemption,
+        'this template is on the separator exemption list, but its .contact-row is no longer '
+          + 'a column — so it now wraps, needs separators, and must come off the list');
+      assert.equal(generates, false,
+        'a column row needs no separator; remove it or take this template off the exemption list');
+    });
+  } else {
+    test(`${t.rel}: generates a separator between contact items`, () => {
+      assert.equal(generates, true,
+        'no `.contact-row > *:not(:last-child)::after` rule, so this template renders a contact '
+          + 'row with no separators at all. Add the rule, or — if its row is a column and needs '
+          + 'none — add it to COLUMN_ROW_TEMPLATES with that reason');
+    });
+
     test(`${t.rel}: hangs the generated separator off the PRECEDING item`, () => {
       assert.match(
         t.src,
